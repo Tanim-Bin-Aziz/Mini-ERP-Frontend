@@ -149,7 +149,7 @@ export const DashboardPage = () => {
                   </div>
                   <Badge
                     tone="danger"
-                    className="bg-danger text-white border-danger"
+                    className="bg-red-600 text-black border-red-600"
                   >
                     {p.stock} left
                   </Badge>
