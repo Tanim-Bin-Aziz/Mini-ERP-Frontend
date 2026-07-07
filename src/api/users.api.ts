@@ -30,18 +30,21 @@ export const usersApi = {
     return data.data;
   },
 
-  create: async (payload: CreateUserPayload) => {
-    const { data } = await api.post<ApiEnvelope>('/users', payload);
-    return data;
-  },
+create: async (payload: CreateUserPayload) => {
+  const { data } = await api.post<ApiEnvelope<AppUser>>('/users', payload);
+  return data;
+},
 
-  update: async (id: string, payload: UpdateUserPayload) => {
-    const { data } = await api.patch<ApiEnvelope>(`/users/${id}`, payload);
-    return data;
-  },
+update: async (id: string, payload: UpdateUserPayload) => {
+  const { data } = await api.patch<ApiEnvelope<AppUser>>(
+    `/users/${id}`,
+    payload
+  );
+  return data;
+},
 
-  deactivate: async (id: string) => {
-    const { data } = await api.delete<ApiEnvelope>(`/users/${id}`);
-    return data;
-  },
+deactivate: async (id: string) => {
+  const { data } = await api.delete<ApiEnvelope<AppUser>>(`/users/${id}`);
+  return data;
+},
 };
