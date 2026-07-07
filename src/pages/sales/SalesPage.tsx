@@ -1,21 +1,28 @@
-import { useMemo, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { Plus, Trash2, Receipt, Download, FileText } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Card';
-import { Modal } from '@/components/ui/Modal';
-import { Pagination } from '@/components/ui/Pagination';
-import { productsApi } from '@/api/products.api';
-import { customersApi } from '@/api/customers.api';
-import { salesApi, type CreateSalePayload } from '@/api/sales.api';
-import { getErrorMessage } from '@/lib/getErrorMessage';
-import { exportToCsv } from '@/lib/exportCsv';
-import { exportTableToPdf, exportSaleInvoicePdf } from '@/lib/exportPdf';
-import { useAuth } from '@/hooks/useAuth';
-import type { Sale } from '@/types';
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  Plus,
+  Trash2,
+  Receipt,
+  Download,
+  FileText,
+  Search,
+} from "lucide-react";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
+import { Pagination } from "@/components/ui/Pagination";
+import { productsApi } from "@/api/products.api";
+import { customersApi } from "@/api/customers.api";
+import { salesApi, type CreateSalePayload } from "@/api/sales.api";
+import { getErrorMessage } from "@/lib/getErrorMessage";
+import { exportToCsv } from "@/lib/exportCsv";
+import { exportTableToPdf, exportSaleInvoicePdf } from "@/lib/exportPdf";
+import { useAuth } from "@/hooks/useAuth";
+import type { Sale } from "@/types";
 
 interface LineItem {
   productId: string;
@@ -27,30 +34,35 @@ const LIMIT = 10;
 export const SalesPage = () => {
   const { hasPermission } = useAuth();
   const qc = useQueryClient();
-  const canCreate = hasPermission('sale:create');
+  const canCreate = hasPermission("sale:create");
 
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [viewSale, setViewSale] = useState<Sale | null>(null);
-  const [customerId, setCustomerId] = useState('');
+  const [customerId, setCustomerId] = useState("");
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<CreateSalePayload['paymentMethod']>('cash');
-  const [lineItems, setLineItems] = useState<LineItem[]>([{ productId: '', quantity: 1 }]);
+  const [paymentMethod, setPaymentMethod] =
+    useState<CreateSalePayload["paymentMethod"]>("cash");
+  const [lineItems, setLineItems] = useState<LineItem[]>([
+    { productId: "", quantity: 1 },
+  ]);
 
   const { data: salesData, isLoading } = useQuery({
-    queryKey: ['sales', page],
-    queryFn: () => salesApi.list({ page, limit: LIMIT }),
+    queryKey: ["sales", page, search],
+    queryFn: () =>
+      salesApi.list({ page, limit: LIMIT, search: search || undefined }),
   });
 
   const { data: productsData } = useQuery({
-    queryKey: ['products-for-sale'],
+    queryKey: ["products-for-sale"],
     queryFn: () => productsApi.list({ page: 1, limit: 200 }),
     enabled: modalOpen,
   });
 
   const { data: customersData } = useQuery({
-    queryKey: ['customers-for-sale'],
+    queryKey: ["customers-for-sale"],
     queryFn: () => customersApi.list({ page: 1, limit: 200 }),
     enabled: modalOpen,
   });
@@ -69,11 +81,11 @@ export const SalesPage = () => {
   const grandTotal = Math.max(subtotal - discount + tax, 0);
 
   const resetForm = () => {
-    setCustomerId('');
+    setCustomerId("");
     setDiscount(0);
     setTax(0);
-    setPaymentMethod('cash');
-    setLineItems([{ productId: '', quantity: 1 }]);
+    setPaymentMethod("cash");
+    setLineItems([{ productId: "", quantity: 1 }]);
   };
 
   const openCreate = () => {
@@ -85,21 +97,25 @@ export const SalesPage = () => {
     mutationFn: (payload: CreateSalePayload) => salesApi.create(payload),
     onSuccess: (sale) => {
       toast.success(`Sale recorded — ${sale.invoiceNumber}`);
-      qc.invalidateQueries({ queryKey: ['sales'] });
-      qc.invalidateQueries({ queryKey: ['products'] });
+      qc.invalidateQueries({ queryKey: ["sales"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
       setModalOpen(false);
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const handleSubmit = () => {
-    if (!customerId) return toast.error('Please select a customer');
+    if (!customerId) return toast.error("Please select a customer");
     const validItems = lineItems.filter((i) => i.productId && i.quantity > 0);
-    if (validItems.length === 0) return toast.error('Add at least one product line');
+    if (validItems.length === 0)
+      return toast.error("Add at least one product line");
 
     saveMutation.mutate({
       customer: customerId,
-      items: validItems.map((i) => ({ product: i.productId, quantity: i.quantity })),
+      items: validItems.map((i) => ({
+        product: i.productId,
+        quantity: i.quantity,
+      })),
       discount: discount || undefined,
       tax: tax || undefined,
       paymentMethod,
@@ -110,12 +126,12 @@ export const SalesPage = () => {
   const meta = salesData?.meta;
 
   const handleExportCsv = () => {
-    if (sales.length === 0) return toast.error('No sales to export');
+    if (sales.length === 0) return toast.error("No sales to export");
     exportToCsv(
-      'sales',
+      "sales",
       sales.map((s) => ({
         Invoice: s.invoiceNumber,
-        Customer: typeof s.customer === 'string' ? s.customer : s.customer.name,
+        Customer: typeof s.customer === "string" ? s.customer : s.customer.name,
         Items: s.items.length,
         Subtotal: s.subtotal,
         Discount: s.discount,
@@ -123,19 +139,19 @@ export const SalesPage = () => {
         GrandTotal: s.grandTotal,
         Status: s.status,
         Date: new Date(s.createdAt).toLocaleString(),
-      }))
+      })),
     );
   };
 
   const handleExportPdf = () => {
-    if (sales.length === 0) return toast.error('No sales to export');
+    if (sales.length === 0) return toast.error("No sales to export");
     exportTableToPdf({
-      filename: 'sales',
-      title: 'Sales History',
-      head: ['Invoice', 'Customer', 'Items', 'Total', 'Status'],
+      filename: "sales",
+      title: "Sales History",
+      head: ["Invoice", "Customer", "Items", "Total", "Status"],
       body: sales.map((s) => [
         s.invoiceNumber,
-        typeof s.customer === 'string' ? s.customer : s.customer.name,
+        typeof s.customer === "string" ? s.customer : s.customer.name,
         s.items.length,
         `৳${s.grandTotal}`,
         s.status,
@@ -145,8 +161,22 @@ export const SalesPage = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-ink-faint">Sale records with live stock deduction</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <Search
+            size={15}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-faint"
+          />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by invoice or customer name..."
+            className="h-9 w-full rounded-md border border-border bg-surface pl-8 pr-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-white/10 dark:bg-white/5"
+          />
+        </div>
         <div className="flex items-center gap-2">
           <Button onClick={handleExportCsv} size="sm" variant="outline">
             <Download size={14} />
@@ -181,14 +211,20 @@ export const SalesPage = () => {
             <tbody className="divide-y divide-border">
               {isLoading && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-ink-faint">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-ink-faint"
+                  >
                     Loading sales…
                   </td>
                 </tr>
               )}
               {!isLoading && sales.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-ink-faint">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-ink-faint"
+                  >
                     No sales recorded yet.
                   </td>
                 </tr>
@@ -206,14 +242,22 @@ export const SalesPage = () => {
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-ink-soft">
-                    {typeof s.customer === 'string' ? s.customer : s.customer.name}
+                    {typeof s.customer === "string"
+                      ? s.customer
+                      : s.customer.name}
                   </td>
-                  <td className="px-4 py-2.5 text-ink-soft">{s.items.length} item(s)</td>
+                  <td className="px-4 py-2.5 text-ink-soft">
+                    {s.items.length} item(s)
+                  </td>
                   <td className="px-4 py-2.5 font-medium text-ink">
                     ৳{s.grandTotal.toLocaleString()}
                   </td>
                   <td className="px-4 py-2.5">
-                    <Badge tone={s.status === 'completed' ? 'success' : 'danger'}>{s.status}</Badge>
+                    <Badge
+                      tone={s.status === "completed" ? "success" : "danger"}
+                    >
+                      {s.status}
+                    </Badge>
                   </td>
                   <td className="px-4 py-2.5">
                     <button
@@ -242,10 +286,16 @@ export const SalesPage = () => {
         )}
       </Card>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create sale">
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Create sale"
+      >
         <div className="flex flex-col gap-3">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-ink-soft">Customer</label>
+            <label className="mb-1.5 block text-xs font-medium text-ink-soft">
+              Customer
+            </label>
             <select
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
@@ -261,7 +311,9 @@ export const SalesPage = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-xs font-medium text-ink-soft">Products</label>
+            <label className="block text-xs font-medium text-ink-soft">
+              Products
+            </label>
             {lineItems.map((item, idx) => {
               const product = products.find((p) => p._id === item.productId);
               return (
@@ -277,7 +329,11 @@ export const SalesPage = () => {
                   >
                     <option value="">Select product…</option>
                     {products.map((p) => (
-                      <option key={p._id} value={p._id} disabled={p.stock === 0}>
+                      <option
+                        key={p._id}
+                        value={p._id}
+                        disabled={p.stock === 0}
+                      >
                         {p.name} (stock: {p.stock}) — ৳{p.price}
                       </option>
                     ))}
@@ -295,7 +351,9 @@ export const SalesPage = () => {
                     className="h-9 w-16 rounded-md border border-border bg-surface px-2 text-center text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                   />
                   <button
-                    onClick={() => setLineItems(lineItems.filter((_, i) => i !== idx))}
+                    onClick={() =>
+                      setLineItems(lineItems.filter((_, i) => i !== idx))
+                    }
                     disabled={lineItems.length === 1}
                     className="rounded p-1.5 text-ink-faint hover:bg-paper hover:text-danger disabled:opacity-30"
                   >
@@ -305,7 +363,9 @@ export const SalesPage = () => {
               );
             })}
             <button
-              onClick={() => setLineItems([...lineItems, { productId: '', quantity: 1 }])}
+              onClick={() =>
+                setLineItems([...lineItems, { productId: "", quantity: 1 }])
+              }
               className="text-xs font-medium text-brand hover:underline"
             >
               + Add another product
@@ -335,7 +395,11 @@ export const SalesPage = () => {
             </label>
             <select
               value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as CreateSalePayload['paymentMethod'])}
+              onChange={(e) =>
+                setPaymentMethod(
+                  e.target.value as CreateSalePayload["paymentMethod"],
+                )
+              }
               className="h-9 w-full rounded-md border border-border bg-surface px-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             >
               <option value="cash">Cash</option>
@@ -374,7 +438,7 @@ export const SalesPage = () => {
       <Modal
         open={!!viewSale}
         onClose={() => setViewSale(null)}
-        title={viewSale ? `Invoice ${viewSale.invoiceNumber}` : 'Invoice'}
+        title={viewSale ? `Invoice ${viewSale.invoiceNumber}` : "Invoice"}
         wide
       >
         {viewSale && (
@@ -383,11 +447,16 @@ export const SalesPage = () => {
               <div>
                 <p className="text-xs text-ink-faint">Customer</p>
                 <p className="font-medium text-ink">
-                  {typeof viewSale.customer === 'string' ? viewSale.customer : viewSale.customer.name}
+                  {typeof viewSale.customer === "string"
+                    ? viewSale.customer
+                    : viewSale.customer.name}
                 </p>
-                {typeof viewSale.customer !== 'string' && viewSale.customer.phone && (
-                  <p className="text-xs text-ink-faint">{viewSale.customer.phone}</p>
-                )}
+                {typeof viewSale.customer !== "string" &&
+                  viewSale.customer.phone && (
+                    <p className="text-xs text-ink-faint">
+                      {viewSale.customer.phone}
+                    </p>
+                  )}
               </div>
               <div>
                 <p className="text-xs text-ink-faint">Date</p>
@@ -397,11 +466,15 @@ export const SalesPage = () => {
               </div>
               <div>
                 <p className="text-xs text-ink-faint">Payment method</p>
-                <p className="font-medium capitalize text-ink">{viewSale.paymentMethod}</p>
+                <p className="font-medium capitalize text-ink">
+                  {viewSale.paymentMethod}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-ink-faint">Status</p>
-                <Badge tone={viewSale.status === 'completed' ? 'success' : 'danger'}>
+                <Badge
+                  tone={viewSale.status === "completed" ? "success" : "danger"}
+                >
                   {viewSale.status}
                 </Badge>
               </div>
@@ -415,7 +488,9 @@ export const SalesPage = () => {
                     <th className="px-3 py-2 font-medium">SKU</th>
                     <th className="px-3 py-2 font-medium">Qty</th>
                     <th className="px-3 py-2 font-medium">Unit price</th>
-                    <th className="px-3 py-2 text-right font-medium">Line total</th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      Line total
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -423,8 +498,12 @@ export const SalesPage = () => {
                     <tr key={item.product}>
                       <td className="px-3 py-2 text-ink">{item.name}</td>
                       <td className="px-3 py-2 text-ink-faint">{item.sku}</td>
-                      <td className="px-3 py-2 text-ink-soft">{item.quantity}</td>
-                      <td className="px-3 py-2 text-ink-soft">৳{item.unitPrice.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-ink-soft">
+                        {item.quantity}
+                      </td>
+                      <td className="px-3 py-2 text-ink-soft">
+                        ৳{item.unitPrice.toLocaleString()}
+                      </td>
                       <td className="px-3 py-2 text-right font-medium text-ink">
                         ৳{item.lineTotal.toLocaleString()}
                       </td>
@@ -453,7 +532,11 @@ export const SalesPage = () => {
               </div>
             </div>
 
-            <Button onClick={() => exportSaleInvoicePdf(viewSale)} variant="outline" className="w-full">
+            <Button
+              onClick={() => exportSaleInvoicePdf(viewSale)}
+              variant="outline"
+              className="w-full"
+            >
               <FileText size={14} />
               Download invoice PDF
             </Button>
