@@ -56,7 +56,7 @@ export const exportSaleInvoicePdf = (sale: Sale) => {
       item.name,
       item.sku,
       item.quantity,
-      `৳${item.price.toLocaleString()}`,
+      `৳${item.unitPrice.toLocaleString()}`,
       `৳${item.lineTotal.toLocaleString()}`,
     ]),
     styles: { fontSize: 9, cellPadding: 3 },

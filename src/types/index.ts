@@ -73,7 +73,7 @@ export interface SaleItem {
   name: string;
   sku: string;
   quantity: number;
-  price: number;
+  unitPrice: number;
   lineTotal: number;
 }
 

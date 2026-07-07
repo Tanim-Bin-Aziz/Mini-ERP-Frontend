@@ -15,6 +15,7 @@ import { getErrorMessage } from '@/lib/getErrorMessage';
 import { exportToCsv } from '@/lib/exportCsv';
 import { exportTableToPdf, exportSaleInvoicePdf } from '@/lib/exportPdf';
 import { useAuth } from '@/hooks/useAuth';
+import type { Sale } from '@/types';
 
 interface LineItem {
   productId: string;
@@ -30,6 +31,7 @@ export const SalesPage = () => {
 
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
+  const [viewSale, setViewSale] = useState<Sale | null>(null);
   const [customerId, setCustomerId] = useState('');
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
@@ -192,7 +194,11 @@ export const SalesPage = () => {
                 </tr>
               )}
               {sales.map((s) => (
-                <tr key={s._id} className="hover:bg-paper/60">
+                <tr
+                  key={s._id}
+                  className="cursor-pointer hover:bg-paper/60"
+                  onClick={() => setViewSale(s)}
+                >
                   <td className="px-4 py-2.5 font-medium text-ink">
                     <span className="flex items-center gap-1.5">
                       <Receipt size={13} className="text-ink-faint" />
@@ -211,7 +217,10 @@ export const SalesPage = () => {
                   </td>
                   <td className="px-4 py-2.5">
                     <button
-                      onClick={() => exportSaleInvoicePdf(s)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        exportSaleInvoicePdf(s);
+                      }}
                       className="flex items-center gap-1 rounded p-1.5 text-xs text-ink-faint hover:bg-paper hover:text-brand"
                     >
                       <FileText size={13} />
@@ -359,6 +368,97 @@ export const SalesPage = () => {
             Confirm sale
           </Button>
         </div>
+      </Modal>
+
+      {/* Invoice detail modal — shows customer + full product breakdown for a sale */}
+      <Modal
+        open={!!viewSale}
+        onClose={() => setViewSale(null)}
+        title={viewSale ? `Invoice ${viewSale.invoiceNumber}` : 'Invoice'}
+        wide
+      >
+        {viewSale && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-ink-faint">Customer</p>
+                <p className="font-medium text-ink">
+                  {typeof viewSale.customer === 'string' ? viewSale.customer : viewSale.customer.name}
+                </p>
+                {typeof viewSale.customer !== 'string' && viewSale.customer.phone && (
+                  <p className="text-xs text-ink-faint">{viewSale.customer.phone}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-ink-faint">Date</p>
+                <p className="font-medium text-ink">
+                  {new Date(viewSale.createdAt).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-ink-faint">Payment method</p>
+                <p className="font-medium capitalize text-ink">{viewSale.paymentMethod}</p>
+              </div>
+              <div>
+                <p className="text-xs text-ink-faint">Status</p>
+                <Badge tone={viewSale.status === 'completed' ? 'success' : 'danger'}>
+                  {viewSale.status}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-paper text-xs text-ink-faint">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Product</th>
+                    <th className="px-3 py-2 font-medium">SKU</th>
+                    <th className="px-3 py-2 font-medium">Qty</th>
+                    <th className="px-3 py-2 font-medium">Unit price</th>
+                    <th className="px-3 py-2 text-right font-medium">Line total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {viewSale.items.map((item) => (
+                    <tr key={item.product}>
+                      <td className="px-3 py-2 text-ink">{item.name}</td>
+                      <td className="px-3 py-2 text-ink-faint">{item.sku}</td>
+                      <td className="px-3 py-2 text-ink-soft">{item.quantity}</td>
+                      <td className="px-3 py-2 text-ink-soft">৳{item.unitPrice.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right font-medium text-ink">
+                        ৳{item.lineTotal.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between text-ink-soft">
+                <span>Subtotal</span>
+                <span>৳{viewSale.subtotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-ink-soft">
+                <span>Discount</span>
+                <span>-৳{viewSale.discount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-ink-soft">
+                <span>Tax</span>
+                <span>+৳{viewSale.tax.toLocaleString()}</span>
+              </div>
+              <div className="mt-1 flex justify-between border-t border-border pt-1 font-display text-base font-semibold text-ink">
+                <span>Grand total</span>
+                <span>৳{viewSale.grandTotal.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <Button onClick={() => exportSaleInvoicePdf(viewSale)} variant="outline" className="w-full">
+              <FileText size={14} />
+              Download invoice PDF
+            </Button>
+          </div>
+        )}
       </Modal>
     </div>
   );
