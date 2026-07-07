@@ -10,11 +10,13 @@ import {
   Trash2,
   Search,
   ImageOff,
+  Eye,
   Download,
   FileText,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
@@ -51,7 +53,7 @@ export const ProductsPage = () => {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-
+  const [viewing, setViewing] = useState<Product | null>(null);
   const canCreate = hasPermission("product:create");
   const canUpdate = hasPermission("product:update");
   const canDelete = hasPermission("product:delete");
@@ -141,14 +143,23 @@ export const ProductsPage = () => {
 
   const handleExportPdf = () => {
     if (products.length === 0) return toast.error("No products to export");
+
     exportTableToPdf({
       filename: "products",
       title: "Product Inventory",
-      head: ["Name", "SKU", "Category", "Price", "Stock"],
+      head: [
+        "Name",
+        "SKU",
+        "Category",
+        "Purchase Price",
+        "Selling Price",
+        "Stock",
+      ],
       body: products.map((p) => [
         p.name,
         p.sku,
         p.category,
+        `৳${p.costPrice ?? 0}`,
         `৳${p.price}`,
         p.stock,
       ]),
@@ -190,7 +201,6 @@ export const ProductsPage = () => {
           )}
         </div>
       </div>
-
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -198,11 +208,12 @@ export const ProductsPage = () => {
               <tr>
                 <th className="px-4 py-2.5 font-medium">Product</th>
                 <th className="px-4 py-2.5 font-medium">Category</th>
-                <th className="px-4 py-2.5 font-medium">Price</th>
+                <th className="px-4 py-2.5 font-medium">SKU</th>
+                <th className="px-4 py-2.5 font-medium">Purchase Price</th>
+                <th className="px-4 py-2.5 font-medium">Selling Price</th>
                 <th className="px-4 py-2.5 font-medium">Stock</th>
-                {(canUpdate || canDelete) && (
-                  <th className="px-4 py-2.5 font-medium">Actions</th>
-                )}
+
+                <th className="px-4 py-2.5 font-medium text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -227,62 +238,88 @@ export const ProductsPage = () => {
                 </tr>
               )}
               {products.map((p) => (
-                <tr key={p._id} className="hover:bg-paper/60">
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
+                <tr
+                  key={p._id}
+                  className="border-b border-border hover:bg-paper/60 transition-colors"
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
                       {p.images?.[0]?.url ? (
                         <img
                           src={p.images[0].url}
                           alt={p.name}
-                          className="h-8 w-8 rounded-md border border-border object-cover"
+                          className="h-10 w-10 rounded-lg border object-cover"
                         />
                       ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-paper text-ink-faint">
-                          <ImageOff size={13} />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-paper">
+                          <ImageOff size={15} />
                         </div>
                       )}
+
                       <div>
-                        <p className="font-medium text-ink">{p.name}</p>
-                        <p className="text-xs text-ink-faint">{p.sku}</p>
+                        <p className="font-medium">{p.name}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-ink-soft">{p.category}</td>
-                  <td className="px-4 py-2.5 text-ink-soft">
+
+                  <td className="px-4 py-3">{p.category}</td>
+
+                  <td className="px-4 py-3 font-mono">{p.sku}</td>
+
+                  <td className="px-4 py-3">
+                    ৳{(p.costPrice ?? 0).toLocaleString()}
+                  </td>
+
+                  <td className="px-4 py-3 font-semibold text-brand">
                     ৳{p.price.toLocaleString()}
                   </td>
-                  <td className="px-4 py-2.5">
-                    <Badge tone={p.stock < 5 ? "danger" : "success"}>
-                      {p.stock} in stock
+
+                  <td className="px-4 py-3">
+                    <Badge
+                      tone={
+                        p.stock <= (p.lowStockThreshold ?? 5)
+                          ? "danger"
+                          : "success"
+                      }
+                    >
+                      {p.stock}
                     </Badge>
                   </td>
-                  {(canUpdate || canDelete) && (
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-1">
-                        {canUpdate && (
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="rounded p-1.5 text-ink-faint hover:bg-paper hover:text-brand"
-                            aria-label="Edit"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            onClick={() => {
-                              if (confirm(`Delete "${p.name}"?`))
-                                deleteMutation.mutate(p._id);
-                            }}
-                            className="rounded p-1.5 text-ink-faint hover:bg-paper hover:text-danger"
-                            aria-label="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
+
+                  <td className="px-4 py-3">
+                    <div className="flex justify-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setViewing(p)}
+                        className="rounded-md p-2 transition hover:bg-paper hover:text-brand"
+                        title="View Product"
+                        aria-label="View Product"
+                      >
+                        <Eye size={16} />
+                      </button>
+
+                      {canUpdate && (
+                        <button
+                          onClick={() => openEdit(p)}
+                          className="rounded-md p-2 transition hover:bg-paper hover:text-brand"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      )}
+
+                      {canDelete && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete "${p.name}"?`))
+                              deleteMutation.mutate(p._id);
+                          }}
+                          className="rounded-md p-2 transition hover:bg-paper hover:text-danger"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -297,7 +334,88 @@ export const ProductsPage = () => {
           />
         )}
       </Card>
+      <Modal
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        title="Product Details"
+      >
+        {viewing && (
+          <div className="space-y-4">
+            {/* Top */}
+            <div className="flex gap-4">
+              <div className="h-28 w-28 flex-shrink-0 overflow-hidden rounded-lg border">
+                {viewing.images?.[0]?.url ? (
+                  <img
+                    src={viewing.images[0].url}
+                    alt={viewing.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-ink-faint">
+                    No Image
+                  </div>
+                )}
+              </div>
 
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold">{viewing.name}</h3>
+
+                <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <div>
+                    <span className="text-ink-faint">SKU</span>
+                    <p className="font-medium">{viewing.sku}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-ink-faint">Category</span>
+                    <p className="font-medium">{viewing.category}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-ink-faint">Purchase</span>
+                    <p className="font-medium">
+                      ৳{(viewing.costPrice ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-ink-faint">Selling</span>
+                    <p className="font-semibold text-brand">
+                      ৳{viewing.price.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-ink-faint">Stock</span>
+                    <p className="font-medium">{viewing.stock}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-ink-faint">Unit</span>
+                    <p className="font-medium">{viewing.unit || "-"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {viewing.description && (
+              <div className="rounded-lg border p-3">
+                <p className="mb-1 text-xs uppercase text-ink-faint">
+                  Description
+                </p>
+
+                <p className="text-sm leading-6">{viewing.description}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setViewing(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
